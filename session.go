@@ -268,6 +268,7 @@ func DialWithTimeout(url string, timeout time.Duration) (*Session, error) {
 // a value suitable for providing into DialWithInfo.
 //
 // See Dial for more details on the format of url.
+// https://docs.mongodb.com/v3.2/reference/connection-string/
 func ParseURL(url string) (*DialInfo, error) {
 	uinfo, err := extractURL(url)
 	if err != nil {
@@ -279,6 +280,7 @@ func ParseURL(url string) (*DialInfo, error) {
 	source := ""
 	setName := ""
 	poolLimit := 0
+	minPoolSize := 0
 	for k, v := range uinfo.options {
 		switch k {
 		case "authSource":
@@ -293,6 +295,11 @@ func ParseURL(url string) (*DialInfo, error) {
 			poolLimit, err = strconv.Atoi(v)
 			if err != nil {
 				return nil, errors.New("bad value for maxPoolSize: " + v)
+			}
+		case "minPoolSize":
+			minPoolSize ,err = strconv.Atoi(v)
+			if err != nil {
+				return nil, errors.New("bad value for minPoolSize: " + v)
 			}
 		case "connect":
 			if v == "direct" {
@@ -318,6 +325,7 @@ func ParseURL(url string) (*DialInfo, error) {
 		Source:         source,
 		PoolLimit:      poolLimit,
 		ReplicaSetName: setName,
+		MinPoolSize:    minPoolSize,
 	}
 	return &info, nil
 }
@@ -383,6 +391,10 @@ type DialInfo struct {
 	// PoolLimit defines the per-server socket pool limit. Defaults to 4096.
 	// See Session.SetPoolLimit for details.
 	PoolLimit int
+
+	// PoolLimit defines The minimum number of connections in the connection pool.
+	// Defaults to 0.
+	MinPoolSize int
 
 	// DialServer optionally specifies the dial function for establishing
 	// connections with the MongoDB servers.
@@ -454,6 +466,11 @@ func DialWithInfo(info *DialInfo) (*Session, error) {
 	if info.PoolLimit > 0 {
 		session.poolLimit = info.PoolLimit
 	}
+
+	if info.MinPoolSize > 0 {
+		cluster.minPoolSize = info.MinPoolSize
+	}
+
 	cluster.Release()
 
 	// People get confused when we return a session that is not actually
@@ -4404,7 +4421,6 @@ func (s *Session) BuildInfo() (info BuildInfo, err error) {
 // Internal session handling helpers.
 
 func (s *Session) acquireSocket(slaveOk bool) (*mongoSocket, error) {
-
 	// Read-only lock to check for previously reserved socket.
 	s.m.RLock()
 	// If there is a slave socket reserved and its use is acceptable, take it as long

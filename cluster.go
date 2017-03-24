@@ -61,6 +61,7 @@ type mongoCluster struct {
 	cachedIndex  map[string]bool
 	sync         chan bool
 	dial         dialer
+	minPoolSize  int
 }
 
 func newCluster(userSeeds []string, direct, failFast bool, dial dialer, setName string) *mongoCluster {
@@ -406,7 +407,7 @@ func (cluster *mongoCluster) server(addr string, tcpaddr *net.TCPAddr) *mongoSer
 	if server != nil {
 		return server
 	}
-	return newServer(addr, tcpaddr, cluster.sync, cluster.dial)
+	return newServer(addr, tcpaddr, cluster.sync, cluster.dial, cluster.minPoolSize)
 }
 
 func resolveAddr(addr string) (*net.TCPAddr, error) {

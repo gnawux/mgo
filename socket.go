@@ -705,3 +705,9 @@ func getInt64(b []byte, pos int) int64 {
 		(int64(b[pos+6]) << 48) |
 		(int64(b[pos+7]) << 56)
 }
+
+type timedMongoSocket struct {
+	soc          *mongoSocket
+	lastTimeUsed *time.Time
+}
+
