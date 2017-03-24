@@ -306,6 +306,7 @@ func DialWithTimeout(url string, timeout time.Duration) (*Session, error) {
 // a value suitable for providing into DialWithInfo.
 //
 // See Dial for more details on the format of url.
+// https://docs.mongodb.com/v3.2/reference/connection-string/
 func ParseURL(url string) (*DialInfo, error) {
 	uinfo, err := extractURL(url)
 	if err != nil {
@@ -318,6 +319,7 @@ func ParseURL(url string) (*DialInfo, error) {
 	setName := ""
 	poolLimit := 0
 	appName := ""
+	minPoolSize := 0
 	readPreferenceMode := Primary
 	var readPreferenceTagSets []bson.D
 	for _, opt := range uinfo.options {
@@ -366,6 +368,11 @@ func ParseURL(url string) (*DialInfo, error) {
 				doc = append(doc, bson.DocElem{Name: strings.TrimSpace(kvp[0]), Value: strings.TrimSpace(kvp[1])})
 			}
 			readPreferenceTagSets = append(readPreferenceTagSets, doc)
+		case "minPoolSize":
+			minPoolSize ,err = strconv.Atoi(v)
+			if err != nil {
+				return nil, errors.New("bad value for minPoolSize: " + v)
+			}
 		case "connect":
 			if opt.value == "direct" {
 				direct = true
@@ -400,6 +407,7 @@ func ParseURL(url string) (*DialInfo, error) {
 			TagSets: readPreferenceTagSets,
 		},
 		ReplicaSetName: setName,
+		MinPoolSize:    minPoolSize,
 	}
 	return &info, nil
 }
@@ -472,6 +480,9 @@ type DialInfo struct {
 	// specified seed servers, or to obtain information for the whole
 	// cluster and establish connections with further servers too.
 	Direct bool
+	// PoolLimit defines The minimum number of connections in the connection pool.
+	// Defaults to 0.
+	MinPoolSize int
 
 	// DialServer optionally specifies the dial function for establishing
 	// connections with the MongoDB servers.
@@ -552,6 +563,11 @@ func DialWithInfo(info *DialInfo) (*Session, error) {
 	if info.PoolLimit > 0 {
 		session.poolLimit = info.PoolLimit
 	}
+
+	if info.MinPoolSize > 0 {
+		cluster.minPoolSize = info.MinPoolSize
+	}
+
 	cluster.Release()
 
 	// People get confused when we return a session that is not actually
@@ -4764,7 +4780,6 @@ func (s *Session) BuildInfo() (info BuildInfo, err error) {
 // Internal session handling helpers.
 
 func (s *Session) acquireSocket(slaveOk bool) (*mongoSocket, error) {
-
 	// Read-only lock to check for previously reserved socket.
 	s.m.RLock()
 	// If there is a slave socket reserved and its use is acceptable, take it as long
