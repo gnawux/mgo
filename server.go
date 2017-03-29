@@ -56,6 +56,7 @@ type mongoServer struct {
 	closed        bool
 	abended       bool
 	minPoolSize   int
+	maxIdleTimeMS int
 }
 
 type dialer struct {
@@ -77,7 +78,7 @@ type mongoServerInfo struct {
 
 var defaultServerInfo mongoServerInfo
 
-func newServer(addr string, tcpaddr *net.TCPAddr, sync chan bool, dial dialer, minPoolSize int) *mongoServer {
+func newServer(addr string, tcpaddr *net.TCPAddr, sync chan bool, dial dialer, minPoolSize int, maxIdleTimeMS int) *mongoServer {
 	server := &mongoServer{
 		Addr:         addr,
 		ResolvedAddr: tcpaddr.String(),
@@ -87,9 +88,12 @@ func newServer(addr string, tcpaddr *net.TCPAddr, sync chan bool, dial dialer, m
 		info:         &defaultServerInfo,
 		pingValue:    time.Hour, // Push it back before an actual ping.
 		minPoolSize:  minPoolSize,
+		maxIdleTimeMS: maxIdleTimeMS,
 	}
 	go server.pinger(true)
-	go server.releaser()
+	if maxIdleTimeMS != 0 {
+		go server.releaser()
+	}
 	return server
 }
 
@@ -383,7 +387,7 @@ func (server *mongoServer) releaser() {
 			if len(tmpSlice) == cap(tmpSlice) {
 				break
 			}
-			if time.Since(*(s.lastTimeUsed)) > 5 * time.Minute {
+			if time.Since(*(s.lastTimeUsed)) > time.Duration(server.maxIdleTimeMS) * time.Millisecond {
 				tmpSlice = append(tmpSlice, s)
 			}
 		}
@@ -398,11 +402,11 @@ func (server *mongoServer) releaser() {
 						n := len(server.unusedSockets) - 1
 						server.unusedSockets[n] = nil
 						server.unusedSockets = server.unusedSockets[:n]
+						stats.conn(-1, server.info.Master)
 						s.soc.Close()
 						break
 					}
 				}
-				s.soc.Close()
 			}
 			server.Unlock()
 		}

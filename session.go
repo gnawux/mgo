@@ -320,6 +320,7 @@ func ParseURL(url string) (*DialInfo, error) {
 	poolLimit := 0
 	appName := ""
 	minPoolSize := 0
+	maxIdleTimeMS := 0
 	readPreferenceMode := Primary
 	var readPreferenceTagSets []bson.D
 	for _, opt := range uinfo.options {
@@ -369,9 +370,14 @@ func ParseURL(url string) (*DialInfo, error) {
 			}
 			readPreferenceTagSets = append(readPreferenceTagSets, doc)
 		case "minPoolSize":
-			minPoolSize ,err = strconv.Atoi(v)
+			minPoolSize, err = strconv.Atoi(v)
 			if err != nil {
 				return nil, errors.New("bad value for minPoolSize: " + v)
+			}
+		case "maxIdleTimeMS":
+			maxIdleTimeMS, err = strconv.Atoi(v)
+			if err != nil {
+				return nil, errors.New("bad value for maxIdleTimeMS: " + v)
 			}
 		case "connect":
 			if opt.value == "direct" {
@@ -408,6 +414,7 @@ func ParseURL(url string) (*DialInfo, error) {
 		},
 		ReplicaSetName: setName,
 		MinPoolSize:    minPoolSize,
+		maxIdleTimeMS:  maxIdleTimeMS,
 	}
 	return &info, nil
 }
@@ -483,6 +490,10 @@ type DialInfo struct {
 	// PoolLimit defines The minimum number of connections in the connection pool.
 	// Defaults to 0.
 	MinPoolSize int
+
+	//The maximum number of milliseconds that a connection can remain idle in the pool
+	// before being removed and closed.
+	maxIdleTimeMS int
 
 	// DialServer optionally specifies the dial function for establishing
 	// connections with the MongoDB servers.
@@ -566,6 +577,10 @@ func DialWithInfo(info *DialInfo) (*Session, error) {
 
 	if info.MinPoolSize > 0 {
 		cluster.minPoolSize = info.MinPoolSize
+	}
+
+	if info.maxIdleTimeMS > 0 {
+		cluster.maxIdleTimeMS = info.maxIdleTimeMS
 	}
 
 	cluster.Release()
