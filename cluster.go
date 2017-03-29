@@ -62,6 +62,7 @@ type mongoCluster struct {
 	sync         chan bool
 	dial         dialer
 	minPoolSize  int
+	maxIdleTimeMS int
 }
 
 func newCluster(userSeeds []string, direct, failFast bool, dial dialer, setName string) *mongoCluster {
@@ -407,7 +408,7 @@ func (cluster *mongoCluster) server(addr string, tcpaddr *net.TCPAddr) *mongoSer
 	if server != nil {
 		return server
 	}
-	return newServer(addr, tcpaddr, cluster.sync, cluster.dial, cluster.minPoolSize)
+	return newServer(addr, tcpaddr, cluster.sync, cluster.dial, cluster.minPoolSize, cluster.maxIdleTimeMS)
 }
 
 func resolveAddr(addr string) (*net.TCPAddr, error) {
