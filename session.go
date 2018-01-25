@@ -370,14 +370,14 @@ func ParseURL(url string) (*DialInfo, error) {
 			}
 			readPreferenceTagSets = append(readPreferenceTagSets, doc)
 		case "minPoolSize":
-			minPoolSize, err = strconv.Atoi(v)
+			minPoolSize, err = strconv.Atoi(opt.value)
 			if err != nil {
-				return nil, errors.New("bad value for minPoolSize: " + v)
+				return nil, errors.New("bad value for minPoolSize: " + opt.value)
 			}
 		case "maxIdleTimeMS":
-			maxIdleTimeMS, err = strconv.Atoi(v)
+			maxIdleTimeMS, err = strconv.Atoi(opt.value)
 			if err != nil {
-				return nil, errors.New("bad value for maxIdleTimeMS: " + v)
+				return nil, errors.New("bad value for maxIdleTimeMS: " + opt.value)
 			}
 		case "connect":
 			if opt.value == "direct" {
@@ -487,7 +487,8 @@ type DialInfo struct {
 	// specified seed servers, or to obtain information for the whole
 	// cluster and establish connections with further servers too.
 	Direct bool
-	// PoolLimit defines The minimum number of connections in the connection pool.
+
+	// MinPoolSize defines The minimum number of connections in the connection pool.
 	// Defaults to 0.
 	MinPoolSize int
 
@@ -5292,7 +5293,7 @@ func getRFC2253NameString(RDNElements *pkix.RDNSequence) string {
 	var replacer = strings.NewReplacer(",", "\\,", "=", "\\=", "+", "\\+", "<", "\\<", ">", "\\>", ";", "\\;")
 	//The elements in the sequence needs to be reversed when converting them
 	for i := len(*RDNElements) - 1; i >= 0; i-- {
-		var nameAndValueList = make([]string,len((*RDNElements)[i]))
+		var nameAndValueList = make([]string, len((*RDNElements)[i]))
 		for j, attribute := range (*RDNElements)[i] {
 			var shortAttributeName = rdnOIDToShortName(attribute.Type)
 			if len(shortAttributeName) <= 0 {

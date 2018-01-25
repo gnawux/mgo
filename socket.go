@@ -741,4 +741,3 @@ type timedMongoSocket struct {
 	soc          *mongoSocket
 	lastTimeUsed *time.Time
 }
-

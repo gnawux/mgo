@@ -48,22 +48,22 @@ import (
 
 type mongoCluster struct {
 	sync.RWMutex
-	serverSynced sync.Cond
-	userSeeds    []string
-	dynaSeeds    []string
-	servers      mongoServers
-	masters      mongoServers
-	references   int
-	syncing      bool
-	direct       bool
-	failFast     bool
-	syncCount    uint
-	setName      string
-	cachedIndex  map[string]bool
-	sync         chan bool
-	dial         dialer
-	appName      string
-	minPoolSize  int
+	serverSynced  sync.Cond
+	userSeeds     []string
+	dynaSeeds     []string
+	servers       mongoServers
+	masters       mongoServers
+	references    int
+	syncing       bool
+	direct        bool
+	failFast      bool
+	syncCount     uint
+	setName       string
+	cachedIndex   map[string]bool
+	sync          chan bool
+	dial          dialer
+	appName       string
+	minPoolSize   int
 	maxIdleTimeMS int
 }
 

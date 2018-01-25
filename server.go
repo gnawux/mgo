@@ -80,14 +80,14 @@ var defaultServerInfo mongoServerInfo
 
 func newServer(addr string, tcpaddr *net.TCPAddr, sync chan bool, dial dialer, minPoolSize int, maxIdleTimeMS int) *mongoServer {
 	server := &mongoServer{
-		Addr:         addr,
-		ResolvedAddr: tcpaddr.String(),
-		tcpaddr:      tcpaddr,
-		sync:         sync,
-		dial:         dial,
-		info:         &defaultServerInfo,
-		pingValue:    time.Hour, // Push it back before an actual ping.
-		minPoolSize:  minPoolSize,
+		Addr:          addr,
+		ResolvedAddr:  tcpaddr.String(),
+		tcpaddr:       tcpaddr,
+		sync:          sync,
+		dial:          dial,
+		info:          &defaultServerInfo,
+		pingValue:     time.Hour, // Push it back before an actual ping.
+		minPoolSize:   minPoolSize,
 		maxIdleTimeMS: maxIdleTimeMS,
 	}
 	go server.pinger(true)
@@ -230,8 +230,8 @@ func (server *mongoServer) RecycleSocket(socket *mongoSocket) {
 	if !server.closed {
 		now := time.Now()
 		server.unusedSockets = append(server.unusedSockets, &timedMongoSocket{
-			lastTimeUsed:&now,
-			soc:socket,
+			lastTimeUsed: &now,
+			soc:          socket,
 		})
 	}
 	server.Unlock()
@@ -382,12 +382,12 @@ func (server *mongoServer) releaser() {
 			server.RUnlock()
 			continue
 		}
-		tmpSlice := make([]*timedMongoSocket, 0, len(server.unusedSockets) - server.minPoolSize)
+		tmpSlice := make([]*timedMongoSocket, 0, len(server.unusedSockets)-server.minPoolSize)
 		for _, s := range server.unusedSockets {
 			if len(tmpSlice) == cap(tmpSlice) {
 				break
 			}
-			if time.Since(*(s.lastTimeUsed)) > time.Duration(server.maxIdleTimeMS) * time.Millisecond {
+			if time.Since(*(s.lastTimeUsed)) > time.Duration(server.maxIdleTimeMS)*time.Millisecond {
 				tmpSlice = append(tmpSlice, s)
 			}
 		}
