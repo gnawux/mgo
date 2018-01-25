@@ -371,44 +371,39 @@ func (server *mongoServer) pinger(loop bool) {
 }
 
 func (server *mongoServer) releaser() {
-	for {
-
-		time.Sleep(1 * time.Minute)
+	ticker := time.NewTicker(1 * time.Minute)
+	for _ = range ticker.C {
 		if server.closed {
+			ticker.Stop()
 			return
 		}
-		server.RLock()
-		if len(server.unusedSockets) < server.minPoolSize {
-			server.RUnlock()
+		server.Lock()
+		unused := len(server.unusedSockets)
+		if unused < server.minPoolSize {
+			server.Unlock()
 			continue
 		}
-		tmpSlice := make([]*timedMongoSocket, 0, len(server.unusedSockets)-server.minPoolSize)
-		for _, s := range server.unusedSockets {
-			if len(tmpSlice) == cap(tmpSlice) {
+		now := time.Now()
+		end := 0
+		// Because the acquirision and recycle are done at the tail of array,
+		// the head is always the oldest unused socket.
+		for _, s := range server.unusedSockets[:unused-server.minPoolSize] {
+			if s.lastTimeUsed.Add(time.Duration(server.maxIdleTimeMS) * time.Millisecond).After(now) {
 				break
 			}
-			if time.Since(*(s.lastTimeUsed)) > time.Duration(server.maxIdleTimeMS)*time.Millisecond {
-				tmpSlice = append(tmpSlice, s)
-			}
+			end++
 		}
-		server.RUnlock()
+		tbr := server.unusedSockets[:end]
+		if end > 0 {
+			next := make([]*timedMongoSocket, unused-end)
+			copy(next, server.unusedSockets[end:])
+			server.unusedSockets = next
+			stats.conn(-1*end, server.info.Master)
+		}
+		server.Unlock()
 
-		if len(tmpSlice) > 0 {
-			server.Lock()
-			for _, s := range tmpSlice {
-				for i, unused := range server.unusedSockets {
-					if s.soc == unused.soc {
-						copy(server.unusedSockets[i:], server.unusedSockets[i+1:])
-						n := len(server.unusedSockets) - 1
-						server.unusedSockets[n] = nil
-						server.unusedSockets = server.unusedSockets[:n]
-						stats.conn(-1, server.info.Master)
-						s.soc.Close()
-						break
-					}
-				}
-			}
-			server.Unlock()
+		for _, s := range tbr {
+			s.soc.Close()
 		}
 	}
 }
