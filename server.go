@@ -385,6 +385,7 @@ func (server *mongoServer) releaser() {
 		}
 		now := time.Now()
 		end := 0
+		reclaimMap := map[*mongoSocket]bool{}
 		// Because the acquirision and recycle are done at the tail of array,
 		// the head is always the oldest unused socket.
 		for _, s := range server.unusedSockets[:unused-server.minPoolSize] {
@@ -392,12 +393,20 @@ func (server *mongoServer) releaser() {
 				break
 			}
 			end++
+			reclaimMap[s.soc] = true
 		}
 		tbr := server.unusedSockets[:end]
 		if end > 0 {
 			next := make([]*timedMongoSocket, unused-end)
 			copy(next, server.unusedSockets[end:])
 			server.unusedSockets = next
+			remainSockets := []*mongoSocket{}
+			for _, s := range server.liveSockets {
+				if !reclaimMap[s] {
+					remainSockets = append(remainSockets, s)
+				}
+			}
+			server.liveSockets = remainSockets
 			stats.conn(-1*end, server.info.Master)
 		}
 		server.Unlock()
